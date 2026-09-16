@@ -29,12 +29,13 @@ const el = {
 
 const settings = loadSettings();
 el.apiToken.value = settings.token;
+document.getElementById('calendarId').value = settings.calendarId;
 el.workMin.value = settings.workMin;
 el.breakMin.value = settings.breakMin;
 
 function loadSettings() {
   const raw = localStorage.getItem('pomo.settings');
-  const defaults = { token: '', workMin: 25, breakMin: 5 };
+  const defaults = { token: '', calendarId: '', workMin: 25, breakMin: 5 };
   const s = raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
   s.token = sanitizeToken(s.token);
   return s;
@@ -47,6 +48,7 @@ function sanitizeToken(raw) {
 
 function saveSettings() {
   settings.token = sanitizeToken(el.apiToken.value);
+  settings.calendarId = document.getElementById('calendarId').value.trim();
   settings.workMin = Number(el.workMin.value) || 25;
   settings.breakMin = Number(el.breakMin.value) || 5;
   localStorage.setItem('pomo.settings', JSON.stringify(settings));
@@ -57,6 +59,7 @@ el.saveSettings.addEventListener('click', () => {
   saveSettings();
   el.settingsPanel.classList.add('hidden');
   if (!timer.running) resetTimerDisplay();
+  renderCalendar();
   updateEta();
   fetchTasks();
 });
@@ -468,6 +471,25 @@ function escapeHtml(str) {
 }
 
 el.refreshTasks.addEventListener('click', fetchTasks);
+
+// ---------- Google Calendar ----------
+
+// Public embed, Day view. Private events show only when the viewer is signed in to Google with access.
+function renderCalendar() {
+  const pane = document.getElementById('calendarPane');
+  const frame = document.getElementById('calendarFrame');
+  pane.classList.toggle('hidden', !settings.calendarId);
+  if (!settings.calendarId) return frame.removeAttribute('src');
+  const params = new URLSearchParams({
+    src: settings.calendarId,
+    ctz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    mode: 'DAY',
+    showTitle: 0, showPrint: 0, showTabs: 0, showCalendars: 0, showTz: 0,
+  });
+  const src = `https://calendar.google.com/calendar/embed?${params}`;
+  if (frame.src !== src) frame.src = src;
+}
+renderCalendar();
 
 // ---------- Add task ----------
 
