@@ -29,23 +29,33 @@
   </section>
 
   <section class="clock">
-    <div id="phaseLabel" class="phase">Work</div>
-    <div id="timeDisplay" class="numerals">25:00</div>
+    <div class="stats">
+      <div class="stat">
+        <div id="phaseLabel" class="phase">Work</div>
+        <div id="timeDisplay" class="numerals">25:00</div>
+      </div>
+      <div class="stat">
+        <div class="phase">Focused today</div>
+        <div id="focusToday" class="numerals focus-numerals">0m</div>
+      </div>
+    </div>
     <div class="track"><div id="progress" class="track-fill"></div></div>
     <div class="controls">
       <button id="startBtn" class="btn btn-primary">Start</button>
       <button id="pauseBtn" class="btn" disabled>Pause</button>
       <button id="resetBtn" class="btn btn-quiet">Reset</button>
+      <button id="switchBtn" class="btn btn-quiet">Skip to break</button>
+      <button id="popOutBtn" class="btn btn-quiet" hidden>Pop out</button>
     </div>
     <div class="clock-meta">
       <span id="cycleCount">Cycle 1</span>
-      <span id="focusToday">nothing focused yet today</span>
     </div>
   </section>
 
   <div class="strip">
     <h2>Today and overdue</h2>
     <div id="eta" class="readouts"></div>
+    <button id="addTaskBtn" class="icon-btn" title="Add task" aria-label="Add task">+</button>
     <button id="refreshTasks" class="icon-btn" title="Refresh tasks" aria-label="Refresh tasks">⟳</button>
   </div>
 
@@ -73,6 +83,26 @@
     </section>
   </div>
 </div>
+
+<dialog id="addTaskDialog" class="settings">
+  <form id="addTaskForm" method="dialog">
+    <label class="field"><span>Task</span><input id="newTaskContent" required autocomplete="off"></label>
+    <div class="settings-row">
+      <label class="field"><span>Priority</span>
+        <select id="newTaskPriority">
+          <option value="4">P1</option>
+          <option value="3">P2</option>
+          <option value="2">P3</option>
+          <option value="1" selected>P4</option>
+        </select>
+      </label>
+    </div>
+    <div class="settings-row">
+      <button type="submit" class="btn btn-primary">Add task</button>
+      <button type="button" id="cancelAddTask" class="btn btn-quiet">Cancel</button>
+    </div>
+  </form>
+</dialog>
 <script src="app.js"></script>
 </body>
 </html>

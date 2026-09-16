@@ -80,7 +80,7 @@ body {
   color: var(--mute);
 }
 
-.field input {
+.field input, .field select {
   background: var(--ink);
   border: 1px solid var(--line);
   color: var(--chalk);
@@ -89,7 +89,7 @@ body {
   font: inherit;
   font-size: .9rem;
 }
-.field input:focus { outline: 2px solid var(--amber); outline-offset: -1px; border-color: transparent; }
+.field input:focus, .field select:focus { outline: 2px solid var(--amber); outline-offset: -1px; border-color: transparent; }
 
 .settings-row {
   display: flex;
@@ -182,7 +182,18 @@ body {
   color: var(--mute);
   font-variant-numeric: tabular-nums;
 }
-.clock.running #focusToday { color: var(--chalk); }
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px 64px;
+}
+.stats .numerals { font-size: clamp(3.5rem, 11vw, 7rem); }
+.focus-numerals { color: var(--mute); }
+.clock.running .focus-numerals { color: var(--chalk); }
+
+.pip .clock { padding: 20px 12px; }
+.pip .stats .numerals { font-size: clamp(2.5rem, 13vw, 4rem); }
 
 /* ---------- readout strip ---------- */
 
@@ -360,3 +371,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0.01ms !important; }
 }
+
+/* ---------- add task dialog ---------- */
+
+dialog.settings { margin: auto; color: var(--chalk); width: min(420px, calc(100vw - 32px)); }
+dialog.settings #addTaskForm { display: flex; flex-direction: column; gap: 12px; }
+dialog::backdrop { background: rgb(0 0 0 / 0.6); }

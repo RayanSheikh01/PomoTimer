@@ -14,6 +14,7 @@ const el = {
   startBtn: document.getElementById('startBtn'),
   pauseBtn: document.getElementById('pauseBtn'),
   resetBtn: document.getElementById('resetBtn'),
+  switchBtn: document.getElementById('switchBtn'),
   clock: document.querySelector('.clock'),
   progress: document.getElementById('progress'),
   refreshTasks: document.getElementById('refreshTasks'),
@@ -84,10 +85,11 @@ function updateDisplay() {
   const s = (timer.secondsLeft % 60).toString().padStart(2, '0');
   el.timeDisplay.textContent = `${m}:${s}`;
   el.phaseLabel.textContent = phaseLabelText(timer.phase);
+  el.switchBtn.textContent = timer.phase === PHASES.WORK ? 'Skip to break' : 'Skip to work';
   el.cycleCount.textContent = `Cycle ${timer.cycle}`;
-  const secs = focusSecondsToday();
-  const focused = secs < 60 ? `${secs}s` : fmtDuration(Math.floor(secs / 60));
-  el.focusToday.textContent = secs ? `${focused} focused today` : 'nothing focused yet today';
+  // Includes the unbanked current work segment so the stat ticks live.
+  const secs = focusSecondsToday() + (workStartedAt ? Math.round((Date.now() - workStartedAt) / 1000) : 0);
+  el.focusToday.textContent = fmtDuration(Math.floor(secs / 60));
   const total = phaseDurationSeconds(timer.phase);
   el.progress.style.transform = `scaleX(${total ? timer.secondsLeft / total : 0})`;
 }
@@ -133,6 +135,10 @@ window.addEventListener('beforeunload', bankWorkSegment);
 
 function advancePhase() {
   notifyPhaseEnd();
+  switchPhase();
+}
+
+function switchPhase() {
   if (timer.phase === PHASES.WORK) {
     bankWorkSegment();
     timer.phase = PHASES.BREAK;
@@ -199,7 +205,30 @@ el.resetBtn.addEventListener('click', () => {
   el.pauseBtn.disabled = true;
 });
 
+el.switchBtn.addEventListener('click', () => {
+  switchPhase();
+  updateDisplay();
+});
+
 updateDisplay();
+
+// Document Picture-in-Picture keeps the clock on top of other windows. Chromium only; button stays hidden elsewhere.
+const popOutBtn = document.getElementById('popOutBtn');
+if ('documentPictureInPicture' in window) {
+  popOutBtn.hidden = false;
+  popOutBtn.addEventListener('click', async () => {
+    if (documentPictureInPicture.window) return documentPictureInPicture.window.close();
+    const pip = await documentPictureInPicture.requestWindow({ width: 380, height: 300 });
+    document.querySelectorAll('link[rel="stylesheet"]').forEach((l) => pip.document.head.append(l.cloneNode()));
+    pip.document.body.classList.add('pip');
+    pip.document.body.append(el.clock);
+    popOutBtn.textContent = 'Pop in';
+    pip.addEventListener('pagehide', () => {
+      el.settingsPanel.after(el.clock);
+      popOutBtn.textContent = 'Pop out';
+    });
+  });
+}
 
 // ---------- Pomo estimates ----------
 const pomoCounts = JSON.parse(localStorage.getItem('pomo.counts') || '{}');
@@ -423,6 +452,39 @@ function escapeHtml(str) {
 }
 
 el.refreshTasks.addEventListener('click', fetchTasks);
+
+// ---------- Add task ----------
+
+const addDialog = document.getElementById('addTaskDialog');
+const addForm = document.getElementById('addTaskForm');
+
+document.getElementById('addTaskBtn').addEventListener('click', () => {
+  if (!settings.token) return el.settingsPanel.classList.remove('hidden');
+  addForm.reset();
+  addDialog.showModal();
+});
+document.getElementById('cancelAddTask').addEventListener('click', () => addDialog.close());
+
+addForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const body = {
+    content: document.getElementById('newTaskContent').value.trim(),
+    priority: Number(document.getElementById('newTaskPriority').value),
+    due_date: localDateString(new Date()),
+  };
+  try {
+    const res = await fetch(`${TODOIST_API}/tasks`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${settings.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Todoist error ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    addDialog.close();
+    fetchTasks();
+  } catch (err) {
+    alert(`Failed to add task: ${err.message}`);
+  }
+});
 
 if (!settings.token) el.settingsPanel.classList.remove('hidden');
 fetchTasks();
