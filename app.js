@@ -484,7 +484,7 @@ function renderCalendar() {
     src: settings.calendarId,
     ctz: Intl.DateTimeFormat().resolvedOptions().timeZone,
     mode: 'DAY',
-    showTitle: 0, showPrint: 0, showTabs: 0, showCalendars: 0, showTz: 0,
+    showTitle: 0, showNav: 0, showDate: 0, showPrint: 0, showTabs: 0, showCalendars: 0, showTz: 0,
   });
   const src = `https://calendar.google.com/calendar/embed?${params}`;
   if (frame.src !== src) frame.src = src;
