@@ -29,13 +29,13 @@ const el = {
 
 const settings = loadSettings();
 el.apiToken.value = settings.token;
-document.getElementById('calendarId').value = settings.calendarId;
+document.getElementById('googleClientId').value = settings.googleClientId;
 el.workMin.value = settings.workMin;
 el.breakMin.value = settings.breakMin;
 
 function loadSettings() {
   const raw = localStorage.getItem('pomo.settings');
-  const defaults = { token: '', calendarId: '', workMin: 25, breakMin: 5 };
+  const defaults = { token: '', googleClientId: '', workMin: 25, breakMin: 5 };
   const s = raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
   s.token = sanitizeToken(s.token);
   return s;
@@ -48,7 +48,7 @@ function sanitizeToken(raw) {
 
 function saveSettings() {
   settings.token = sanitizeToken(el.apiToken.value);
-  settings.calendarId = document.getElementById('calendarId').value.trim();
+  settings.googleClientId = document.getElementById('googleClientId').value.trim();
   settings.workMin = Number(el.workMin.value) || 25;
   settings.breakMin = Number(el.breakMin.value) || 5;
   localStorage.setItem('pomo.settings', JSON.stringify(settings));
@@ -470,26 +470,86 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
-el.refreshTasks.addEventListener('click', fetchTasks);
+el.refreshTasks.addEventListener('click', () => { fetchTasks(); renderCalendar(); });
 
 // ---------- Google Calendar ----------
 
-// Public embed, Day view. Private events show only when the viewer is signed in to Google with access.
-function renderCalendar() {
-  const pane = document.getElementById('calendarPane');
-  const frame = document.getElementById('calendarFrame');
-  pane.classList.toggle('hidden', !settings.calendarId);
-  if (!settings.calendarId) return frame.removeAttribute('src');
+// Read-only access via Google Identity Services. Token lasts ~1h; kept in sessionStorage so reloads don't re-prompt.
+let tokenClient = null;
+
+function googleToken() {
+  try {
+    const t = JSON.parse(sessionStorage.getItem('pomo.gtoken'));
+    return t && t.expires > Date.now() ? t.value : null;
+  } catch { return null; }
+}
+
+function connectGoogle() {
+  if (!window.google?.accounts?.oauth2) return alert('Google sign-in is still loading, try again in a moment.');
+  if (!tokenClient || tokenClient.clientId !== settings.googleClientId) {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: settings.googleClientId,
+      scope: 'https://www.googleapis.com/auth/calendar.events.readonly',
+      callback: (resp) => {
+        if (resp.error) return setCalendar(`<li class="error-state">Google sign-in failed: ${escapeHtml(resp.error)}</li>`);
+        sessionStorage.setItem('pomo.gtoken', JSON.stringify({
+          value: resp.access_token,
+          expires: Date.now() + (resp.expires_in - 60) * 1000,
+        }));
+        renderCalendar();
+      },
+    });
+    tokenClient.clientId = settings.googleClientId;
+  }
+  tokenClient.requestAccessToken();
+}
+
+function setCalendar(html) {
+  document.getElementById('calendarList').innerHTML = html;
+}
+
+async function renderCalendar() {
+  document.getElementById('calendarPane').classList.toggle('hidden', !settings.googleClientId);
+  if (!settings.googleClientId) return;
+
+  const token = googleToken();
+  if (!token) {
+    setCalendar('<li class="empty-state"><button id="connectGoogle" class="btn btn-primary">Connect Google Calendar</button></li>');
+    document.getElementById('connectGoogle').addEventListener('click', connectGoogle);
+    return;
+  }
+
+  const now = new Date();
   const params = new URLSearchParams({
-    src: settings.calendarId,
-    ctz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    mode: 'DAY',
-    showTitle: 0, showNav: 0, showDate: 0, showPrint: 0, showTabs: 0, showCalendars: 0, showTz: 0,
+    timeMin: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(),
+    timeMax: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString(),
+    singleEvents: 'true',
+    orderBy: 'startTime',
   });
-  const src = `https://calendar.google.com/calendar/embed?${params}`;
-  if (frame.src !== src) frame.src = src;
+  try {
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 401) {
+      sessionStorage.removeItem('pomo.gtoken');
+      return renderCalendar();
+    }
+    if (!res.ok) throw new Error(`Google error ${res.status}`);
+    const events = (await res.json()).items;
+    if (!events.length) return setCalendar('<li class="empty-state">Nothing scheduled today.</li>');
+
+    const fmt = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    setCalendar(events.map((ev) => {
+      const when = ev.start.dateTime ? `${fmt(ev.start.dateTime)} – ${fmt(ev.end.dateTime)}` : 'All day';
+      const past = ev.end.dateTime && new Date(ev.end.dateTime) < now;
+      return `<li class="task-item${past ? ' past' : ''}"><div class="task-content">${escapeHtml(ev.summary || '(No title)')}<div class="task-due">${when}</div></div></li>`;
+    }).join(''));
+  } catch (err) {
+    setCalendar(`<li class="error-state">Could not load calendar. ${escapeHtml(err.message)}</li>`);
+  }
 }
 renderCalendar();
+setInterval(() => { if (googleToken()) renderCalendar(); }, 10 * 60 * 1000);
 
 // ---------- Add task ----------
 

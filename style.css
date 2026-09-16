@@ -37,17 +37,15 @@ body {
 .layout .app { flex: 1; min-width: 0; margin: 0; }
 
 .calendar {
+  --tone: var(--cyan);
   position: sticky;
   top: 20px;
-  width: 340px;
-  height: calc(100vh - 40px);
+  width: 300px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
   margin: 20px 20px 0 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: #fff;
 }
-.calendar iframe { width: 100%; height: 100%; border: 0; }
+.calendar .past { opacity: .45; }
 
 /* ---------- top bar ---------- */
 
@@ -115,6 +113,7 @@ body {
   margin-top: 14px;
 }
 .settings-row .field { width: 130px; }
+.settings > .field + .field { margin-top: 14px; }
 
 /* ---------- clock ---------- */
 
@@ -396,5 +395,5 @@ dialog::backdrop { background: rgb(0 0 0 / 0.6); }
 
 @media (max-width: 1100px) {
   .layout { flex-direction: column; align-items: stretch; }
-  .calendar { position: static; width: auto; height: 600px; margin: 0 20px 40px; }
+  .calendar { position: static; width: auto; max-height: none; margin: 0 20px 40px; }
 }

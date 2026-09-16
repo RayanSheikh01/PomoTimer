@@ -23,8 +23,8 @@
       <input type="password" id="apiToken" placeholder="40-character token" autocomplete="new-password" spellcheck="false">
     </label>
     <label class="field">
-      <span>Google Calendar ID (usually your Gmail address)</span>
-      <input type="text" id="calendarId" placeholder="you@gmail.com" autocomplete="off" spellcheck="false">
+      <span>Google OAuth client ID (for today's calendar)</span>
+      <input type="text" id="googleClientId" placeholder="….apps.googleusercontent.com" autocomplete="off" spellcheck="false">
     </label>
     <div class="settings-row">
       <label class="field"><span>Work minutes</span><input type="number" id="workMin" min="1" value="25"></label>
@@ -88,8 +88,9 @@
     </section>
   </div>
 </div>
-<aside id="calendarPane" class="calendar hidden">
-  <iframe id="calendarFrame" title="Today's calendar"></iframe>
+<aside id="calendarPane" class="column calendar hidden">
+  <div class="col-head"><h3>Today's calendar</h3></div>
+  <ul id="calendarList" class="task-list"></ul>
 </aside>
 </div>
 
@@ -114,6 +115,7 @@
     </div>
   </form>
 </dialog>
+<script src="https://accounts.google.com/gsi/client" async></script>
 <script src="app.js"></script>
 </body>
 </html>
