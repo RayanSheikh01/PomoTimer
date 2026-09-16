@@ -325,7 +325,7 @@ async function fetchTasks() {
     const today = localDateString(new Date());
     const due = all
       .filter((t) => t.due && t.due.date.slice(0, 10) <= today)
-      .sort((a, b) => a.due.date.localeCompare(b.due.date));
+      .sort((a, b) => dueSortKey(a.due) - dueSortKey(b.due));
     renderTasks(due);
   } catch (err) {
     setAllLists(`<li class="error-state">Could not load tasks. ${escapeHtml(err.message)}</li>`);
@@ -382,6 +382,8 @@ function taskItem(task, today) {
   const overdue = dueDate && dueDate < today;
   due.className = 'task-due' + (overdue ? ' overdue' : '');
   due.textContent = dueDate ? (overdue ? `Overdue ${shortDate(dueDate)}` : 'Today') : '';
+  const time = task.due && dueTime(task.due);
+  if (time) due.textContent += ` · ${time}`;
   content.appendChild(due);
 
   const pomos = document.createElement('input');
@@ -441,6 +443,20 @@ function shortDate(iso) {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
+// Timed dues carry "THH:MM:SS" in date (API v1) or datetime (older shape). "Z" = UTC; no suffix = floating local time.
+function dueTime(due) {
+  const dt = due.datetime || (due.date.length > 10 ? due.date : null);
+  return dt ? new Date(dt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
+}
+
+// Timed tasks sort by their moment; untimed ones go at the end of their day.
+function dueSortKey(due) {
+  const dt = due.datetime || (due.date.length > 10 ? due.date : null);
+  if (dt) return new Date(dt).getTime();
+  const [y, m, d] = due.date.split('-').map(Number);
+  return new Date(y, m - 1, d + 1).getTime() - 1;
+}
+
 function localDateString(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -461,6 +477,7 @@ const addForm = document.getElementById('addTaskForm');
 document.getElementById('addTaskBtn').addEventListener('click', () => {
   if (!settings.token) return el.settingsPanel.classList.remove('hidden');
   addForm.reset();
+  document.getElementById('newTaskDate').value = localDateString(new Date());
   addDialog.showModal();
 });
 document.getElementById('cancelAddTask').addEventListener('click', () => addDialog.close());
@@ -470,8 +487,17 @@ addForm.addEventListener('submit', async (e) => {
   const body = {
     content: document.getElementById('newTaskContent').value.trim(),
     priority: Number(document.getElementById('newTaskPriority').value),
-    due_date: localDateString(new Date()),
   };
+  const date = document.getElementById('newTaskDate').value;
+  const time = document.getElementById('newTaskTime').value;
+  if (time) {
+    // Built from parts so the date is read as local, not UTC.
+    const [y, mo, d] = date.split('-').map(Number);
+    const [h, m] = time.split(':').map(Number);
+    body.due_datetime = new Date(y, mo - 1, d, h, m).toISOString();
+  } else {
+    body.due_date = date;
+  }
   try {
     const res = await fetch(`${TODOIST_API}/tasks`, {
       method: 'POST',
