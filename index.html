@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pomo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="wordmark">Pomo</div>
+    <button id="settingsToggle" class="icon-btn" title="Settings" aria-label="Settings">⚙</button>
+  </header>
+
+  <section id="settingsPanel" class="settings hidden">
+    <label class="field">
+      <span>Todoist API token</span>
+      <input type="password" id="apiToken" placeholder="40-character token" autocomplete="new-password" spellcheck="false">
+    </label>
+    <div class="settings-row">
+      <label class="field"><span>Work minutes</span><input type="number" id="workMin" min="1" value="25"></label>
+      <label class="field"><span>Break minutes</span><input type="number" id="breakMin" min="1" value="5"></label>
+      <button id="saveSettings" class="btn btn-primary">Save settings</button>
+    </div>
+  </section>
+
+  <section class="clock">
+    <div id="phaseLabel" class="phase">Work</div>
+    <div id="timeDisplay" class="numerals">25:00</div>
+    <div class="track"><div id="progress" class="track-fill"></div></div>
+    <div class="controls">
+      <button id="startBtn" class="btn btn-primary">Start</button>
+      <button id="pauseBtn" class="btn" disabled>Pause</button>
+      <button id="resetBtn" class="btn btn-quiet">Reset</button>
+    </div>
+    <div class="clock-meta">
+      <span id="cycleCount">Cycle 1</span>
+      <span id="focusToday">nothing focused yet today</span>
+    </div>
+  </section>
+
+  <div class="strip">
+    <h2>Today and overdue</h2>
+    <div id="eta" class="readouts"></div>
+    <button id="refreshTasks" class="icon-btn" title="Refresh tasks" aria-label="Refresh tasks">⟳</button>
+  </div>
+
+  <div class="columns">
+    <section class="column c1">
+      <div class="col-head">
+        <h3>P1</h3>
+        <div id="totalP1" class="col-total"></div>
+      </div>
+      <ul id="listP1" class="task-list"></ul>
+    </section>
+    <section class="column c2">
+      <div class="col-head">
+        <h3>P2</h3>
+        <div id="totalP2" class="col-total"></div>
+      </div>
+      <ul id="listP2" class="task-list"></ul>
+    </section>
+    <section class="column c3">
+      <div class="col-head">
+        <h3>P3 and P4</h3>
+        <div id="totalP34" class="col-total"></div>
+      </div>
+      <ul id="listP34" class="task-list"></ul>
+    </section>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
