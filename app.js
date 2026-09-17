@@ -32,10 +32,12 @@ el.apiToken.value = settings.token;
 document.getElementById('googleClientId').value = settings.googleClientId;
 el.workMin.value = settings.workMin;
 el.breakMin.value = settings.breakMin;
+document.getElementById('longBreakMin').value = settings.longBreakMin;
+document.getElementById('longEvery').value = settings.longEvery;
 
 function loadSettings() {
   const raw = localStorage.getItem('pomo.settings');
-  const defaults = { token: '', googleClientId: '', workMin: 25, breakMin: 5 };
+  const defaults = { token: '', googleClientId: '', workMin: 25, breakMin: 5, longBreakMin: 15, longEvery: 4 };
   const s = raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
   s.token = sanitizeToken(s.token);
   return s;
@@ -51,6 +53,8 @@ function saveSettings() {
   settings.googleClientId = document.getElementById('googleClientId').value.trim();
   settings.workMin = Number(el.workMin.value) || 25;
   settings.breakMin = Number(el.breakMin.value) || 5;
+  settings.longBreakMin = Number(document.getElementById('longBreakMin').value) || 15;
+  settings.longEvery = Math.max(1, Math.round(Number(document.getElementById('longEvery').value) || 4));
   localStorage.setItem('pomo.settings', JSON.stringify(settings));
 }
 
@@ -65,7 +69,7 @@ el.saveSettings.addEventListener('click', () => {
 });
 
 // ---------- Timer ----------
-const PHASES = { WORK: 'work', BREAK: 'break' };
+const PHASES = { WORK: 'work', BREAK: 'break', LONG_BREAK: 'longBreak' };
 
 const timer = {
   running: false,
@@ -76,11 +80,13 @@ const timer = {
 };
 
 function phaseDurationSeconds(phase) {
-  return (phase === PHASES.WORK ? settings.workMin : settings.breakMin) * 60;
+  if (phase === PHASES.WORK) return settings.workMin * 60;
+  return (phase === PHASES.LONG_BREAK ? settings.longBreakMin : settings.breakMin) * 60;
 }
 
 function phaseLabelText(phase) {
-  return phase === PHASES.WORK ? 'Work' : 'Break';
+  if (phase === PHASES.WORK) return 'Work';
+  return phase === PHASES.LONG_BREAK ? 'Long break' : 'Short break';
 }
 
 function updateDisplay() {
@@ -89,7 +95,8 @@ function updateDisplay() {
   el.timeDisplay.textContent = `${m}:${s}`;
   el.phaseLabel.textContent = phaseLabelText(timer.phase);
   el.switchBtn.textContent = timer.phase === PHASES.WORK ? 'Skip to break' : 'Skip to work';
-  el.cycleCount.textContent = `Cycle ${timer.cycle}`;
+  const untilLong = settings.longEvery - ((timer.cycle - 1) % settings.longEvery);
+  el.cycleCount.textContent = `Cycle ${timer.cycle} · ${untilLong === 1 ? 'long break next' : `${untilLong} until long break`}`;
   // Includes the unbanked current work segment so the stat ticks live.
   const secs = focusSecondsToday() + (workStartedAt ? Math.round((Date.now() - workStartedAt) / 1000) : 0);
   el.focusToday.textContent = fmtDuration(Math.floor(secs / 60));
@@ -144,7 +151,7 @@ function advancePhase() {
 function switchPhase() {
   if (timer.phase === PHASES.WORK) {
     bankWorkSegment();
-    timer.phase = PHASES.BREAK;
+    timer.phase = timer.cycle % settings.longEvery === 0 ? PHASES.LONG_BREAK : PHASES.BREAK;
   } else {
     timer.cycle++;
     timer.phase = PHASES.WORK;
@@ -249,9 +256,12 @@ function setPomos(id, n) {
 }
 
 // A run of N pomos is N work blocks with a break between each, so the trailing break is dropped.
+// Every longEvery-th break is long. Ignores where the current cycle sits; assumes a fresh count.
 function minutesFor(pomos) {
   if (!pomos) return 0;
-  return Math.max(0, Math.round(pomos * (settings.workMin + settings.breakMin) - settings.breakMin));
+  const breaks = Math.max(0, pomos - 1);
+  const longs = Math.floor(breaks / settings.longEvery);
+  return Math.round(pomos * settings.workMin + (breaks - longs) * settings.breakMin + longs * settings.longBreakMin);
 }
 
 function fmtDuration(mins) {
